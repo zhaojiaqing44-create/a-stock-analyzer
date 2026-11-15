@@ -1,309 +1,643 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI驱动的A股数据分析平台</title>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #0f1923; color: #e4e6eb; }
-        .header { background: linear-gradient(135deg, #1a2a3a 0%, #0f1923 100%); padding: 24px 32px; border-bottom: 1px solid #2a3a4a; }
-        .header h1 { font-size: 24px; font-weight: 600; background: linear-gradient(90deg, #4facfe, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .header p { color: #8a9ba8; margin-top: 6px; font-size: 14px; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
-        .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #2a3a4a; }
-        .tab { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; color: #8a9ba8; transition: all 0.2s; }
-        .tab.active { color: #4facfe; border-bottom-color: #4facfe; }
-        .tab:hover { color: #e4e6eb; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .card { background: #1a2a3a; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #2a3a4a; }
-        .card h3 { font-size: 16px; margin-bottom: 16px; color: #4facfe; }
-        .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-        .control-group { display: flex; flex-direction: column; gap: 6px; }
-        label { font-size: 13px; color: #8a9ba8; }
-        select, input { background: #0f1923; border: 1px solid #2a3a4a; color: #e4e6eb; padding: 8px 12px; border-radius: 6px; font-size: 14px; min-width: 140px; }
-        button { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #0f1923; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: opacity 0.2s; }
-        button:hover { opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .chart { width: 100%; height: 400px; margin-top: 16px; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
-        .stat-box { background: #0f1923; padding: 16px; border-radius: 8px; border: 1px solid #2a3a4a; }
-        .stat-label { font-size: 12px; color: #8a9ba8; }
-        .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
-        .stat-value.positive { color: #00d68f; }
-        .stat-value.negative { color: #ff4757; }
-        .ai-box { background: #0f1923; padding: 20px; border-radius: 8px; border-left: 3px solid #4facfe; margin-top: 16px; line-height: 1.8; font-size: 15px; }
-        .loading { color: #8a9ba8; padding: 20px; text-align: center; }
-        .table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        .table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #2a3a4a; }
-        .table th { color: #8a9ba8; font-weight: 500; font-size: 13px; }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-green { background: rgba(0,214,143,0.15); color: #00d68f; }
-        .badge-red { background: rgba(255,71,87,0.15); color: #ff4757; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股数据分析平台 v2.0</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: background 0.3s, color 0.3s;
+}
+:root {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --text: #2c3e50;
+    --text-secondary: #7f8c8d;
+    --border: #e1e8ed;
+    --primary: #3498db;
+    --up: #e74c3c;
+    --down: #27ae60;
+    --accent: #8e44ad;
+}
+[data-theme="dark"] {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --text: #e8e8e8;
+    --text-secondary: #a0a0b0;
+    --border: #2a2a4a;
+    --primary: #5dade2;
+    --up: #ff6b6b;
+    --down: #51cf66;
+    --accent: #bb8fce;
+}
+.header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.header h1 { font-size: 20px; font-weight: 600; }
+.header-right { display: flex; gap: 12px; align-items: center; }
+.theme-toggle {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.tab {
+    padding: 10px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+.tab:hover { border-color: var(--primary); }
+.tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+.panel { display: none; }
+.panel.active { display: block; }
+.card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.card h2 { font-size: 18px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.grid { display: grid; gap: 20px; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+select, input, button {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+button { cursor: pointer; background: var(--primary); color: white; border: none; }
+button:hover { opacity: 0.9; }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.chart { width: 100%; height: 400px; }
+.chart-sm { width: 100%; height: 250px; }
+.stat {
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    text-align: center;
+}
+.stat-value { font-size: 28px; font-weight: 700; margin: 8px 0; }
+.stat-label { font-size: 12px; color: var(--text-secondary); }
+.up { color: var(--up); }
+.down { color: var(--down); }
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    background: var(--bg);
+    margin-right: 4px;
+}
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+.chat-box {
+    height: 300px;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+.chat-msg { margin-bottom: 12px; }
+.chat-msg.user { text-align: right; }
+.chat-msg .bubble {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 12px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+.chat-msg.user .bubble { background: var(--primary); color: white; }
+.chat-msg.ai .bubble { background: var(--card); border: 1px solid var(--border); }
+.chat-input { display: flex; gap: 8px; }
+.chat-input input { flex: 1; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: var(--bg); font-weight: 600; }
+@media (max-width: 768px) {
+    .container { padding: 10px; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 12px; }
+}
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>AI驱动的A股数据分析平台</h1>
-        <p>数据可视化 · 短期反转效应回测 · AI智能解读</p>
-    </div>
-    <div class="container">
-        <div class="tabs">
-            <div class="tab active" data-tab="kline">股票K线图</div>
-            <div class="tab" data-tab="backtest">反转效应回测</div>
-            <div class="tab" data-tab="ai">AI智能解读</div>
-        </div>
 
-        <!-- K线图 -->
-        <div class="tab-content active" id="tab-kline">
+<div class="header">
+    <h1>📈 A股数据分析平台 v2.0</h1>
+    <div class="header-right">
+        <select id="apiKeyInput" placeholder="DeepSeek API Key（可选）">
+            <option value="">无API Key（Mock模式）</option>
+        </select>
+        <input type="password" id="apiKey" placeholder="输入DeepSeek API Key" style="width:200px">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙 暗色模式</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('market')">市场概览</div>
+        <div class="tab" onclick="switchTab('stock')">个股分析</div>
+        <div class="tab" onclick="switchTab('backtest')">回测研究</div>
+        <div class="tab" onclick="switchTab('ai')">AI智能</div>
+        <div class="tab" onclick="switchTab('portfolio')">自选组合</div>
+    </div>
+
+    <!-- 市场概览 -->
+    <div id="panel-market" class="panel active">
+        <div class="grid grid-4" id="indexStats"></div>
+        <div class="card">
+            <h2>主要指数走势</h2>
+            <div id="indexChart" class="chart"></div>
+        </div>
+        <div class="card">
+            <h2>市场情绪</h2>
+            <div id="sentimentBox"></div>
+        </div>
+    </div>
+
+    <!-- 个股分析 -->
+    <div id="panel-stock" class="panel">
+        <div class="card">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+                <select id="stockSelect"></select>
+                <input type="date" id="startDate" value="2024-01-01">
+                <input type="date" id="endDate" value="2024-12-31">
+                <button onclick="loadStock()">查询</button>
+            </div>
+            <div id="stockStats" class="grid grid-4"></div>
+        </div>
+        <div class="grid grid-2">
             <div class="card">
-                <h3>股票K线数据</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label>选择股票</label>
-                        <select id="stockSelect"></select>
-                    </div>
-                    <div class="control-group">
-                        <label>开始日期</label>
-                        <input type="date" id="startDate" value="2023-01-01">
-                    </div>
-                    <div class="control-group">
-                        <label>结束日期</label>
-                        <input type="date" id="endDate" value="2024-12-31">
-                    </div>
-                    <button onclick="loadKline()">查询</button>
-                </div>
+                <h2>K线 + 均线</h2>
                 <div id="klineChart" class="chart"></div>
-                <div class="stats" id="klineStats"></div>
+            </div>
+            <div class="card">
+                <h2>成交量</h2>
+                <div id="volumeChart" class="chart"></div>
             </div>
         </div>
-
-        <!-- 回测 -->
-        <div class="tab-content" id="tab-backtest">
+        <div class="grid grid-2">
             <div class="card">
-                <h3>短期反转效应回测</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label>股票池（逗号分隔代码）</label>
-                        <input type="text" id="btCodes" value="000001,600519,000858,601318,600036,000333,600276,002594" style="width:300px">
-                    </div>
-                    <div class="control-group">
-                        <label>回溯天数</label>
-                        <input type="number" id="lookback" value="5" min="1" max="60">
-                    </div>
-                    <div class="control-group">
-                        <label>持有天数</label>
-                        <input type="number" id="hold" value="5" min="1" max="60">
-                    </div>
-                    <div class="control-group">
-                        <label>分组数</label>
-                        <input type="number" id="groups" value="5" min="2" max="10">
-                    </div>
-                    <button onclick="runBacktest()">开始回测</button>
-                </div>
-                <div id="btChart" class="chart"></div>
-                <div class="stats" id="btStats"></div>
+                <h2>MACD</h2>
+                <div id="macdChart" class="chart-sm"></div>
+            </div>
+            <div class="card">
+                <h2>RSI</h2>
+                <div id="rsiChart" class="chart-sm"></div>
             </div>
         </div>
-
-        <!-- AI解读 -->
-        <div class="tab-content" id="tab-ai">
+        <div class="grid grid-2">
             <div class="card">
-                <h3>AI个股智能分析</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label>选择股票</label>
-                        <select id="aiStockSelect"></select>
-                    </div>
-                    <div class="control-group">
-                        <label>API Key（可选，留空使用本地分析）</label>
-                        <input type="text" id="apiKey" placeholder="DeepSeek API Key" style="width:300px">
-                    </div>
-                    <button onclick="runAIAnalyze()">AI分析</button>
-                </div>
-                <div id="aiResult"></div>
+                <h2>KDJ</h2>
+                <div id="kdjChart" class="chart-sm"></div>
+            </div>
+            <div class="card">
+                <h2>布林带</h2>
+                <div id="bollChart" class="chart-sm"></div>
             </div>
         </div>
     </div>
 
-    <script>
-        let klineChart = echarts.init(document.getElementById('klineChart'));
-        let btChart = echarts.init(document.getElementById('btChart'));
-        let stockList = [];
+    <!-- 回测研究 -->
+    <div id="panel-backtest" class="panel">
+        <div class="card">
+            <h2>短期反转效应回测</h2>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+                <input type="date" id="btStart" value="2024-01-01">
+                <input type="date" id="btEnd" value="2024-12-31">
+                <select id="btHold">
+                    <option value="1">持有1天</option>
+                    <option value="5" selected>持有5天</option>
+                    <option value="10">持有10天</option>
+                    <option value="20">持有20天</option>
+                </select>
+                <button onclick="runBacktest()">运行回测</button>
+            </div>
+            <div id="backtestResult"></div>
+        </div>
+        <div class="card">
+            <h2>Fama-MacBeth截面回归</h2>
+            <button onclick="runFamaMacbeth()">运行回归</button>
+            <div id="fmResult" style="margin-top:16px"></div>
+        </div>
+        <div class="card">
+            <h2>多因子分组回测</h2>
+            <button onclick="runMultiFactor()">运行多因子</button>
+            <div id="mfResult" style="margin-top:16px"></div>
+        </div>
+    </div>
 
-        // Tab切换
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.onclick = () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
-                setTimeout(() => {
-                    klineChart.resize();
-                    btChart.resize();
-                }, 100);
-            };
-        });
+    <!-- AI智能 -->
+    <div id="panel-ai" class="panel">
+        <div class="grid grid-2">
+            <div class="card">
+                <h2>AI个股分析</h2>
+                <select id="aiStockSelect"></select>
+                <button onclick="aiAnalyze()" style="margin-left:8px">分析</button>
+                <div id="aiAnalysis" style="margin-top:16px"></div>
+            </div>
+            <div class="card">
+                <h2>AI市场问答</h2>
+                <div class="chat-box" id="chatBox"></div>
+                <div class="chat-input">
+                    <input type="text" id="chatInput" placeholder="问我关于A股的问题..." onkeypress="if(event.key==='Enter')sendChat()">
+                    <button onclick="sendChat()">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        // 加载股票列表
-        async function loadStocks() {
-            const res = await fetch('/api/stocks');
-            stockList = await res.json();
-            const html = stockList.map(s => `<option value="${s.code}">${s.code} ${s.name}</option>`).join('');
-            document.getElementById('stockSelect').innerHTML = html;
-            document.getElementById('aiStockSelect').innerHTML = html;
+    <!-- 自选组合 -->
+    <div id="panel-portfolio" class="panel">
+        <div class="card">
+            <h2>我的自选股</h2>
+            <div style="margin-bottom:12px">
+                <select id="addStockSelect"></select>
+                <button onclick="addWatchlist()">添加</button>
+            </div>
+            <table id="watchlistTable">
+                <thead><tr><th>代码</th><th>名称</th><th>最新价</th><th>涨跌幅</th><th>操作</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let charts = {};
+let stockData = null;
+let watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
+
+// 初始化
+async function init() {
+    await loadStocks();
+    await loadIndices();
+    loadSentiment();
+    if (watchlist.length) renderWatchlist();
+}
+
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? '' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️ 亮色模式' : '🌙 暗色模式';
+    Object.values(charts).forEach(c => c && c.dispose());
+    charts = {};
+    if (stockData) renderStockCharts();
+}
+if (localStorage.getItem('theme') === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.querySelector('.theme-toggle').textContent = '☀️ 亮色模式';
+}
+
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+    setTimeout(() => { Object.values(charts).forEach(c => c && c.resize()); }, 100);
+}
+
+async function loadStocks() {
+    const res = await fetch('/api/stocks');
+    const stocks = await res.json();
+    const opts = stocks.map(s => `<option value="${s.code}">${s.name} (${s.code})</option>`).join('');
+    ['stockSelect', 'aiStockSelect', 'addStockSelect'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = opts;
+    });
+}
+
+async function loadIndices() {
+    const res = await fetch('/api/indices');
+    const indices = await res.json();
+    let statsHtml = '';
+    indices.forEach(idx => {
+        statsHtml += `<div class="stat"><div class="stat-label">${idx.name}</div><div class="stat-value" id="idx-${idx.symbol}">--</div></div>`;
+    });
+    document.getElementById('indexStats').innerHTML = statsHtml;
+
+    const chart = echarts.init(document.getElementById('indexChart'));
+    charts.index = chart;
+    const series = [];
+    for (const idx of indices) {
+        const r = await fetch(`/api/index/${idx.symbol}?start_date=20240101&end_date=20241231`);
+        const d = await r.json();
+        const last = d.close[d.close.length - 1];
+        document.getElementById('idx-' + idx.symbol).textContent = last.toFixed(2);
+        series.push({ name: idx.name, type: 'line', data: d.close, smooth: true, symbol: 'none' });
+    }
+    chart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { top: 0 },
+        grid: { top: 40, left: 50, right: 20, bottom: 30 },
+        xAxis: { type: 'category', data: series[0]?.data?.map((_,i) => i) || [] },
+        yAxis: { type: 'value', scale: true },
+        series
+    });
+}
+
+async function loadSentiment() {
+    const res = await fetch('/api/ai/sentiment');
+    const s = await res.json();
+    const color = s.sentiment_score > 0.5 ? 'var(--up)' : (s.sentiment_score < 0.4 ? 'var(--down)' : 'var(--text-secondary)');
+    document.getElementById('sentimentBox').innerHTML = `
+        <div class="grid grid-3">
+            <div class="stat"><div class="stat-label">情绪评分</div><div class="stat-value" style="color:${color}">${(s.sentiment_score*100).toFixed(0)}</div></div>
+            <div class="stat"><div class="stat-label">情绪标签</div><div class="stat-value">${s.sentiment_label}</div></div>
+            <div class="stat"><div class="stat-label">恐惧贪婪指数</div><div class="stat-value">${s.indicators.fear_greed_index}</div></div>
+        </div>
+        <p style="margin-top:16px;color:var(--text-secondary)">${s.description}</p>
+    `;
+}
+
+async function loadStock() {
+    const code = document.getElementById('stockSelect').value;
+    const start = document.getElementById('startDate').value.replace(/-/g, '');
+    const end = document.getElementById('endDate').value.replace(/-/g, '');
+    const res = await fetch(`/api/stock/${code}?start_date=${start}&end_date=${end}`);
+    stockData = await res.json();
+    renderStockStats();
+    renderStockCharts();
+}
+
+function renderStockStats() {
+    const d = stockData;
+    const last = d.close[d.close.length - 1];
+    const prev = d.close[d.close.length - 2] || last;
+    const change = ((last - prev) / prev * 100);
+    const high5 = Math.max(...d.close.slice(-5));
+    const low5 = Math.min(...d.close.slice(-5));
+    document.getElementById('stockStats').innerHTML = `
+        <div class="stat"><div class="stat-label">最新价</div><div class="stat-value">${last.toFixed(2)}</div></div>
+        <div class="stat"><div class="stat-label">涨跌幅</div><div class="stat-value ${change >= 0 ? 'up' : 'down'}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</div></div>
+        <div class="stat"><div class="stat-label">5日最高</div><div class="stat-value">${high5.toFixed(2)}</div></div>
+        <div class="stat"><div class="stat-label">5日最低</div><div class="stat-value">${low5.toFixed(2)}</div></div>
+    `;
+}
+
+function renderStockCharts() {
+    const d = stockData;
+    const dates = d.dates;
+    const kdata = d.close.map((_, i) => [d.open[i], d.close[i], d.low[i], d.high[i]]);
+
+    const kline = echarts.init(document.getElementById('klineChart'));
+    charts.kline = kline;
+    kline.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['K线', 'MA5', 'MA10', 'MA20'], top: 0 },
+        grid: { top: 40, left: 50, right: 20, bottom: 30 },
+        xAxis: { type: 'category', data: dates, axisLabel: { rotate: 45 } },
+        yAxis: { type: 'value', scale: true },
+        dataZoom: [{ type: 'inside' }, { type: 'slider' }],
+        series: [
+            { name: 'K线', type: 'candlestick', data: kdata },
+            { name: 'MA5', type: 'line', data: d.indicators.ma5, smooth: true, symbol: 'none' },
+            { name: 'MA10', type: 'line', data: d.indicators.ma10, smooth: true, symbol: 'none' },
+            { name: 'MA20', type: 'line', data: d.indicators.ma20, smooth: true, symbol: 'none' },
+        ]
+    });
+
+    const vol = echarts.init(document.getElementById('volumeChart'));
+    charts.volume = vol;
+    vol.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { top: 20, left: 50, right: 20, bottom: 30 },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value' },
+        series: [{ type: 'bar', data: d.volume, itemStyle: { color: '#3498db' } }]
+    });
+
+    const macd = echarts.init(document.getElementById('macdChart'));
+    charts.macd = macd;
+    macd.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['DIF', 'DEA', 'MACD'], top: 0 },
+        grid: { top: 30, left: 50, right: 20, bottom: 20 },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value' },
+        series: [
+            { name: 'DIF', type: 'line', data: d.indicators.dif, symbol: 'none' },
+            { name: 'DEA', type: 'line', data: d.indicators.dea, symbol: 'none' },
+            { name: 'MACD', type: 'bar', data: d.indicators.macd.map(v => [v >= 0 ? '#e74c3c' : '#27ae60', v]) },
+        ]
+    });
+
+    const rsi = echarts.init(document.getElementById('rsiChart'));
+    charts.rsi = rsi;
+    rsi.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { top: 20, left: 50, right: 20, bottom: 20 },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value', min: 0, max: 100 },
+        series: [
+            { type: 'line', data: d.indicators.rsi, symbol: 'none', lineStyle: { color: '#8e44ad' } },
+            { type: 'line', data: dates.map(() => 70), symbol: 'none', lineStyle: { type: 'dashed', color: '#e74c3c' } },
+            { type: 'line', data: dates.map(() => 30), symbol: 'none', lineStyle: { type: 'dashed', color: '#27ae60' } },
+        ]
+    });
+
+    const kdj = echarts.init(document.getElementById('kdjChart'));
+    charts.kdj = kdj;
+    kdj.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['K', 'D', 'J'], top: 0 },
+        grid: { top: 30, left: 50, right: 20, bottom: 20 },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value' },
+        series: [
+            { name: 'K', type: 'line', data: d.indicators.k, symbol: 'none' },
+            { name: 'D', type: 'line', data: d.indicators.d, symbol: 'none' },
+            { name: 'J', type: 'line', data: d.indicators.j, symbol: 'none' },
+        ]
+    });
+
+    const boll = echarts.init(document.getElementById('bollChart'));
+    charts.boll = boll;
+    boll.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['收盘价', '上轨', '中轨', '下轨'], top: 0 },
+        grid: { top: 30, left: 50, right: 20, bottom: 20 },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value', scale: true },
+        series: [
+            { name: '收盘价', type: 'line', data: d.close, symbol: 'none' },
+            { name: '上轨', type: 'line', data: d.indicators.boll_upper, symbol: 'none', lineStyle: { type: 'dashed' } },
+            { name: '中轨', type: 'line', data: d.indicators.boll_mid, symbol: 'none' },
+            { name: '下轨', type: 'line', data: d.indicators.boll_lower, symbol: 'none', lineStyle: { type: 'dashed' } },
+        ]
+    });
+}
+
+async function runBacktest() {
+    const start = document.getElementById('btStart').value.replace(/-/g, '');
+    const end = document.getElementById('btEnd').value.replace(/-/g, '');
+    const hold = document.getElementById('btHold').value;
+    document.getElementById('backtestResult').innerHTML = '<div class="loading">回测中，请稍候（可能需要1-2分钟）...</div>';
+    const res = await fetch('/api/backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_date: start, end_date: end, hold_days: parseInt(hold) })
+    });
+    const r = await res.json();
+    if (r.error) {
+        document.getElementById('backtestResult').innerHTML = `<p style="color:var(--up)">${r.error}</p>`;
+        return;
+    }
+    document.getElementById('backtestResult').innerHTML = `
+        <div class="grid grid-4">
+            <div class="stat"><div class="stat-label">多空组合收益</div><div class="stat-value ${r.annual_return >= 0 ? 'up' : 'down'}">${(r.annual_return*100).toFixed(2)}%</div></div>
+            <div class="stat"><div class="stat-label">夏普比率</div><div class="stat-value">${r.sharpe_ratio.toFixed(2)}</div></div>
+            <div class="stat"><div class="stat-label">最大回撤</div><div class="stat-value down">${(r.max_drawdown*100).toFixed(2)}%</div></div>
+            <div class="stat"><div class="stat-label">t统计量</div><div class="stat-value">${r.t_statistic.toFixed(2)}</div></div>
+        </div>
+        <p style="margin-top:16px;color:var(--text-secondary)">${r.interpretation || ''}</p>
+    `;
+}
+
+async function runFamaMacbeth() {
+    document.getElementById('fmResult').innerHTML = '<div class="loading">回归计算中...</div>';
+    const res = await fetch('/api/fama-macbeth');
+    const r = await res.json();
+    if (r.error) {
+        document.getElementById('fmResult').innerHTML = `<p style="color:var(--up)">${r.error}</p>`;
+        return;
+    }
+    document.getElementById('fmResult').innerHTML = `
+        <div class="grid grid-3">
+            <div class="stat"><div class="stat-label">回归系数β</div><div class="stat-value">${r.mean_beta.toFixed(4)}</div></div>
+            <div class="stat"><div class="stat-label">t统计量</div><div class="stat-value">${r.t_statistic.toFixed(2)}</div></div>
+            <div class="stat"><div class="stat-label">p值</div><div class="stat-value">${r.p_value.toFixed(4)}</div></div>
+        </div>
+        <p style="margin-top:16px">${r.interpretation}</p>
+    `;
+}
+
+async function runMultiFactor() {
+    document.getElementById('mfResult').innerHTML = '<div class="loading">多因子回测中...</div>';
+    const res = await fetch('/api/multi-factor');
+    const r = await res.json();
+    let html = '<table><thead><tr><th>因子</th><th>平均收益</th><th>t统计</th><th>夏普</th><th>期数</th></tr></thead><tbody>';
+    for (const [f, v] of Object.entries(r.factors || {})) {
+        html += `<tr><td>${f}</td><td class="${v.mean_return >= 0 ? 'up' : 'down'}">${(v.mean_return*100).toFixed(2)}%</td><td>${v.t_stat.toFixed(2)}</td><td>${v.sharpe.toFixed(2)}</td><td>${v.n_periods}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('mfResult').innerHTML = html;
+}
+
+function getApiKey() { return document.getElementById('apiKey').value || null; }
+
+async function aiAnalyze() {
+    const code = document.getElementById('aiStockSelect').value;
+    const name = document.getElementById('aiStockSelect').selectedOptions[0].text;
+    document.getElementById('aiAnalysis').innerHTML = '<div class="loading">AI分析中...</div>';
+    const res = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, stock_name: name, api_key: getApiKey() || '', provider: 'deepseek' })
+    });
+    const r = await res.json();
+    document.getElementById('aiAnalysis').innerHTML = `
+        ${r.data ? `<div class="grid grid-3">
+            <div class="stat"><div class="stat-label">收盘价</div><div class="stat-value">${r.data.close}</div></div>
+            <div class="stat"><div class="stat-label">5日涨跌</div><div class="stat-value">${r.data.change_5d}%</div></div>
+            <div class="stat"><div class="stat-label">20日涨跌</div><div class="stat-value">${r.data.change_20d}%</div></div>
+        </div>` : ''}
+        <div style="margin-top:16px;padding:16px;background:var(--bg);border-radius:8px;line-height:1.8">${r.insight}</div>
+    `;
+}
+
+function sendChat() {
+    const input = document.getElementById('chatInput');
+    const q = input.value.trim();
+    if (!q) return;
+    const box = document.getElementById('chatBox');
+    box.innerHTML += `<div class="chat-msg user"><div class="bubble">${q}</div></div>`;
+    input.value = '';
+    fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, api_key: getApiKey() || '' })
+    }).then(r => r.json()).then(r => {
+        box.innerHTML += `<div class="chat-msg ai"><div class="bubble">${r.answer}</div></div>`;
+        box.scrollTop = box.scrollHeight;
+    });
+}
+
+function addWatchlist() {
+    const select = document.getElementById('addStockSelect');
+    const code = select.value;
+    const name = select.selectedOptions[0].text;
+    if (!watchlist.find(w => w.code === code)) {
+        watchlist.push({ code, name });
+        localStorage.setItem('watchlist', JSON.stringify(watchlist));
+        renderWatchlist();
+    }
+}
+
+function removeWatchlist(code) {
+    watchlist = watchlist.filter(w => w.code !== code);
+    localStorage.setItem('watchlist', JSON.stringify(watchlist));
+    renderWatchlist();
+}
+
+async function renderWatchlist() {
+    const tbody = document.querySelector('#watchlistTable tbody');
+    let html = '';
+    for (const w of watchlist) {
+        try {
+            const res = await fetch(`/api/stock/${w.code}?start_date=20240101&end_date=20241231`);
+            const d = await res.json();
+            const last = d.close[d.close.length - 1];
+            const prev = d.close[d.close.length - 2] || last;
+            const chg = ((last - prev) / prev * 100).toFixed(2);
+            html += `<tr><td>${w.code}</td><td>${w.name}</td><td>${last.toFixed(2)}</td><td class="${chg >= 0 ? 'up' : 'down'}">${chg >= 0 ? '+' : ''}${chg}%</td><td><button onclick="removeWatchlist('${w.code}')">删除</button></td></tr>`;
+        } catch(e) {
+            html += `<tr><td>${w.code}</td><td>${w.name}</td><td colspan="3">获取失败</td></tr>`;
         }
+    }
+    tbody.innerHTML = html;
+}
 
-        // K线图
-        async function loadKline() {
-            const code = document.getElementById('stockSelect').value;
-            const start = document.getElementById('startDate').value.replace(/-/g, '');
-            const end = document.getElementById('endDate').value.replace(/-/g, '');
-            const res = await fetch(`/api/stock/${code}?start_date=${start}&end_date=${end}`);
-            const data = await res.json();
-            if (data.detail) { alert(data.detail); return; }
-
-            const dates = data.dates;
-            const kdata = data.open.map((o, i) => [o, data.close[i], data.low[i], data.high[i]]);
-
-            const option = {
-                backgroundColor: 'transparent',
-                title: { text: `${code} K线图`, left: 'center', textStyle: {color: '#e4e6eb'} },
-                tooltip: { trigger: 'axis' },
-                grid: { left: '10%', right: '5%', bottom: '15%' },
-                xAxis: { type: 'category', data: dates, axisLine: {lineStyle: {color: '#2a3a4a'}}, axisLabel: {color: '#8a9ba8'} },
-                yAxis: { scale: true, axisLine: {lineStyle: {color: '#2a3a4a'}}, axisLabel: {color: '#8a9ba8'}, splitLine: {lineStyle: {color: '#1a2a3a'}} },
-                dataZoom: [{ type: 'inside', start: 60, end: 100 }, { type: 'slider', start: 60, end: 100, height: 20, bottom: 10 }],
-                series: [{
-                    type: 'candlestick',
-                    data: kdata,
-                    itemStyle: { color: '#00d68f', color0: '#ff4757', borderColor: '#00d68f', borderColor0: '#ff4757' }
-                }]
-            };
-            klineChart.setOption(option);
-
-            // 统计
-            const closes = data.close;
-            const change = ((closes[closes.length-1] - closes[0]) / closes[0] * 100).toFixed(2);
-            const high = Math.max(...data.high).toFixed(2);
-            const low = Math.min(...data.low).toFixed(2);
-            document.getElementById('klineStats').innerHTML = `
-                <div class="stat-box"><div class="stat-label">区间涨跌幅</div><div class="stat-value ${change>=0?'positive':'negative'}">${change}%</div></div>
-                <div class="stat-box"><div class="stat-label">区间最高价</div><div class="stat-value">${high}</div></div>
-                <div class="stat-box"><div class="stat-label">区间最低价</div><div class="stat-value">${low}</div></div>
-                <div class="stat-box"><div class="stat-label">交易天数</div><div class="stat-value">${closes.length}</div></div>
-            `;
-        }
-
-        // 回测
-        async function runBacktest() {
-            const codes = document.getElementById('btCodes').value.split(',').map(c => c.trim()).filter(Boolean);
-            const start = '20230101';
-            const end = '20241231';
-            const lookback = parseInt(document.getElementById('lookback').value);
-            const hold = parseInt(document.getElementById('hold').value);
-            const groups = parseInt(document.getElementById('groups').value);
-
-            document.getElementById('btStats').innerHTML = '<div class="loading">回测中，大约需要10-30秒...</div>';
-
-            const res = await fetch('/api/backtest', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({codes, start_date: start, end_date: end, lookback_days: lookback, hold_days: hold, n_groups: groups})
-            });
-            const data = await res.json();
-            if (data.error) { alert(data.error); return; }
-
-            // 多空收益曲线
-            const dates = data.dates;
-            const lsReturns = data.long_short_returns || [];
-            const cumulative = [];
-            let cum = 1;
-            lsReturns.forEach(r => { cum *= (1 + r); cumulative.push(cum.toFixed(4)); });
-
-            const series = [];
-            for (let g = 1; g <= groups; g++) {
-                const rets = data.group_mean_returns[`group_${g}`] || [];
-                let c = 1;
-                const cumRets = rets.map(r => { c *= (1 + r); return c.toFixed(4); });
-                series.push({
-                    name: `第${g}组`,
-                    type: 'line',
-                    data: cumRets,
-                    smooth: true,
-                    symbol: 'none',
-                });
-            }
-            series.push({
-                name: '多空组合',
-                type: 'line',
-                data: cumulative,
-                smooth: true,
-                lineStyle: {width: 3, color: '#4facfe'},
-                symbol: 'none',
-            });
-
-            const option = {
-                backgroundColor: 'transparent',
-                title: { text: '分组累计净值曲线', left: 'center', textStyle: {color: '#e4e6eb'} },
-                tooltip: { trigger: 'axis' },
-                legend: { data: series.map(s => s.name), top: 30, textStyle: {color: '#8a9ba8'} },
-                grid: { left: '10%', right: '5%', bottom: '10%', top: '20%' },
-                xAxis: { type: 'category', data: dates, axisLine: {lineStyle: {color: '#2a3a4a'}}, axisLabel: {color: '#8a9ba8'} },
-                yAxis: { scale: true, axisLine: {lineStyle: {color: '#2a3a4a'}}, axisLabel: {color: '#8a9ba8'}, splitLine: {lineStyle: {color: '#1a2a3a'}} },
-                series: series
-            };
-            btChart.setOption(option);
-
-            // 统计
-            const s = data.summary;
-            const lsMean = (s.long_short_mean * 100).toFixed(3);
-            const lsT = s.long_short_tstat.toFixed(3);
-            const lsSharpe = s.long_short_sharpe.toFixed(3);
-            document.getElementById('btStats').innerHTML = `
-                <div class="stat-box"><div class="stat-label">多空组合平均收益(%)</div><div class="stat-value ${lsMean>=0?'positive':'negative'}">${lsMean}</div></div>
-                <div class="stat-box"><div class="stat-label">t统计量</div><div class="stat-value">${lsT}</div></div>
-                <div class="stat-box"><div class="stat-label">年化夏普比率</div><div class="stat-value">${lsSharpe}</div></div>
-                <div class="stat-box"><div class="stat-label">调仓次数</div><div class="stat-value">${dates.length}</div></div>
-            `;
-        }
-
-        // AI分析
-        async function runAIAnalyze() {
-            const select = document.getElementById('aiStockSelect');
-            const code = select.value;
-            const name = select.options[select.selectedIndex].text.split(' ')[1] || code;
-            const apiKey = document.getElementById('apiKey').value;
-            const provider = apiKey ? 'deepseek' : 'mock';
-
-            document.getElementById('aiResult').innerHTML = '<div class="loading">AI分析中...</div>';
-
-            const res = await fetch('/api/ai/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({code, stock_name: name, api_key: apiKey, provider})
-            });
-            const data = await res.json();
-
-            const d = data.data || {};
-            let statsHtml = '';
-            if (d.close) {
-                statsHtml = `
-                    <div class="stats" style="margin-bottom:16px">
-                        <div class="stat-box"><div class="stat-label">最新收盘价</div><div class="stat-value">${d.close}</div></div>
-                        <div class="stat-box"><div class="stat-label">近5日涨跌幅</div><div class="stat-value ${d.change_5d>=0?'positive':'negative'}">${d.change_5d}%</div></div>
-                        <div class="stat-box"><div class="stat-label">近20日涨跌幅</div><div class="stat-value ${d.change_20d>=0?'positive':'negative'}">${d.change_20d}%</div></div>
-                        <div class="stat-box"><div class="stat-label">成交量趋势</div><div class="stat-value">${d.volume_trend}</div></div>
-                    </div>
-                `;
-            }
-            document.getElementById('aiResult').innerHTML = statsHtml + `<div class="ai-box">${data.insight}</div>`;
-        }
-
-        loadStocks();
-        window.addEventListener('resize', () => { klineChart.resize(); btChart.resize(); });
-    </script>
+init();
+</script>
 </body>
 </html>

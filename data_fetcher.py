@@ -28,6 +28,16 @@ HOT_STOCKS = [
     ("002230", "科大讯飞"),
 ]
 
+# 主要指数
+INDICES = [
+    ("000001", "上证指数", "sh000001"),
+    ("399001", "深证成指", "sz399001"),
+    ("399006", "创业板指", "sz399006"),
+    ("000300", "沪深300", "sh000300"),
+    ("000905", "中证500", "sh000905"),
+    ("000852", "中证1000", "sh000852"),
+]
+
 
 def code_to_txsymbol(code: str) -> str:
     """将6位股票代码转为腾讯接口格式"""
@@ -51,6 +61,19 @@ def fetch_stock_data(code: str, start_date: str = "20230101", end_date: str = "2
     return df
 
 
+def fetch_index_data(symbol: str, start_date: str = "20230101", end_date: str = "20241231") -> pd.DataFrame:
+    """获取指数数据"""
+    df = ak.stock_zh_a_hist_tx(
+        symbol=symbol,
+        start_date=start_date,
+        end_date=end_date,
+        adjust="",
+    )
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    return df
+
+
 def fetch_multi_stocks(codes: list, start_date: str, end_date: str) -> dict:
     """批量获取多只股票数据，带延迟避免限流"""
     result = {}
@@ -68,6 +91,11 @@ def fetch_multi_stocks(codes: list, start_date: str, end_date: str) -> dict:
 def get_stock_list() -> list:
     """返回股票列表"""
     return HOT_STOCKS
+
+
+def get_index_list() -> list:
+    """返回指数列表"""
+    return [{"code": c, "name": n, "symbol": s} for c, n, s in INDICES]
 
 
 if __name__ == "__main__":

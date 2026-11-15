@@ -1,16 +1,30 @@
-"""FastAPI后端服务"""
+"""FastAPI主服务 v2.0"""
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import pandas as pd
 import os
+import sys
+import pandas as pd
 
-from data_fetcher import fetch_stock_data, get_stock_list
-from backtest import reversal_backtest, single_stock_reversal
-from ai_analyzer import analyze_stock, mock_insight
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-app = FastAPI(title="AI驱动的A股数据分析平台", version="1.0.0")
+from data_fetcher import (
+    fetch_stock_data, get_stock_list, get_index_list, fetch_index_data,
+)
+from backtest import reversal_backtest
+from ai_analyzer import get_ai_insight, analyze_stock, market_sentiment, ai_chat, mock_insight
+from indicators import calc_all_indicators
+from fama_macbeth import fama_macbeth_regression, multi_factor_backtest
+
+app = FastAPI(title="AI驱动的A股数据分析平台", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class BacktestRequest(BaseModel):
@@ -32,17 +46,25 @@ class AIAnalyzeRequest(BaseModel):
 @app.get("/api/stocks")
 def stock_list():
     """获取股票列表"""
-    stocks = get_stock_list()
-    return [{"code": c, "name": n} for c, n in stocks]
+    return [{"code": c, "name": n} for c, n in get_stock_list()]
+
+
+@app.get("/api/indices")
+def index_list():
+    """获取指数列表"""
+    return get_index_list()
 
 
 @app.get("/api/stock/{code}")
 def stock_data(code: str, start_date: str = "20230101", end_date: str = "20241231"):
-    """获取单只股票K线数据"""
+    """获取股票K线数据 + 技术指标"""
     try:
         df = fetch_stock_data(code, start_date, end_date)
         if df.empty:
             raise HTTPException(status_code=404, detail="无数据")
+
+        indicators = calc_all_indicators(df)
+
         return {
             "code": code,
             "dates": df["date"].dt.strftime("%Y-%m-%d").tolist(),
@@ -51,6 +73,25 @@ def stock_data(code: str, start_date: str = "20230101", end_date: str = "2024123
             "high": df["high"].tolist(),
             "low": df["low"].tolist(),
             "volume": df["volume"].tolist(),
+            "amount": df.get("amount", pd.Series()).tolist() if "amount" in df.columns else [],
+            "indicators": indicators,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/index/{symbol}")
+def index_data(symbol: str, start_date: str = "20230101", end_date: str = "20241231"):
+    """获取指数数据"""
+    try:
+        df = fetch_index_data(symbol, start_date, end_date)
+        return {
+            "symbol": symbol,
+            "dates": df["date"].dt.strftime("%Y-%m-%d").tolist(),
+            "close": df["close"].tolist(),
+            "volume": df["volume"].tolist(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -58,8 +99,8 @@ def stock_data(code: str, start_date: str = "20230101", end_date: str = "2024123
 
 @app.post("/api/backtest")
 def backtest(req: BacktestRequest):
-    """反转效应回测"""
-    codes = req.codes or ["000001", "600519", "000858", "601318", "600036"]
+    """短期反转效应回测"""
+    codes = req.codes or [c for c, _ in get_stock_list()]
     result = reversal_backtest(
         codes=codes,
         start_date=req.start_date,
@@ -71,14 +112,35 @@ def backtest(req: BacktestRequest):
     return result
 
 
+@app.get("/api/fama-macbeth")
+def fama_macbeth(start_date: str = "20230101", end_date: str = "20241231", lookback: int = 5):
+    """Fama-MacBeth截面回归"""
+    try:
+        codes = [c for c, _ in get_stock_list()]
+        result = fama_macbeth_regression(codes, start_date, end_date, lookback)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/multi-factor")
+def multi_factor(start_date: str = "20230101", end_date: str = "20241231", hold_days: int = 5):
+    """多因子分组回测"""
+    try:
+        codes = [c for c, _ in get_stock_list()]
+        result = multi_factor_backtest(codes, start_date, end_date, ["reversal", "momentum", "volatility"], hold_days)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/ai/analyze")
 def ai_analyze(req: AIAnalyzeRequest):
     """AI个股分析"""
     try:
-        # 获取最新数据
         df = fetch_stock_data(req.code, "20240101", "20241231")
         if df.empty or len(df) < 20:
-            return {"insight": mock_insight(f"{req.stock_name} 数据不足")}
+            return {"insight": mock_insight(f"{req.stock_name} 数据不足"), "data": {}}
 
         close = df["close"].iloc[-1]
         change_5d = (df["close"].iloc[-1] / df["close"].iloc[-6] - 1) * 100 if len(df) >= 6 else 0
@@ -99,9 +161,23 @@ def ai_analyze(req: AIAnalyzeRequest):
         return {"insight": f"分析失败: {str(e)}", "data": {}}
 
 
+@app.get("/api/ai/sentiment")
+def sentiment():
+    """市场情绪分析"""
+    return market_sentiment()
+
+
+@app.post("/api/ai/chat")
+def chat_endpoint(data: dict):
+    """AI市场问答"""
+    question = data.get("question", "")
+    api_key = data.get("api_key", "") or None
+    answer = ai_chat(question, api_key)
+    return {"answer": answer}
+
+
 @app.get("/")
 def root():
-    # 按优先级查找index.html
     candidates = [
         os.path.join(os.getcwd(), "index.html"),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"),
@@ -113,8 +189,7 @@ def root():
         if os.path.exists(html_path):
             with open(html_path, "r", encoding="utf-8") as f:
                 return HTMLResponse(f.read())
-    found = [c for c in candidates if os.path.exists(c)]
-    return HTMLResponse(f"<h1>index.html 未找到</h1><p>已搜索路径：</p><pre>{chr(10).join(candidates)}</pre><p>找到的：{found}</p>")
+    return HTMLResponse("<h1>index.html 未找到</h1>")
 
 
 if __name__ == "__main__":
