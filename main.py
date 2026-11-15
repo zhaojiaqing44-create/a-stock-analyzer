@@ -99,8 +99,8 @@ def index_data(symbol: str, start_date: str = "20230101", end_date: str = "20241
 
 @app.post("/api/backtest")
 def backtest(req: BacktestRequest):
-    """短期反转效应回测"""
-    codes = req.codes or [c for c, _ in get_stock_list()]
+    """短期反转效应回测（默认用前30只，避免超时）"""
+    codes = req.codes or [c for c, _ in get_stock_list()[:30]]
     result = reversal_backtest(
         codes=codes,
         start_date=req.start_date,
@@ -114,9 +114,9 @@ def backtest(req: BacktestRequest):
 
 @app.get("/api/fama-macbeth")
 def fama_macbeth(start_date: str = "20230101", end_date: str = "20241231", lookback: int = 5):
-    """Fama-MacBeth截面回归"""
+    """Fama-MacBeth截面回归（用前40只）"""
     try:
-        codes = [c for c, _ in get_stock_list()]
+        codes = [c for c, _ in get_stock_list()[:40]]
         result = fama_macbeth_regression(codes, start_date, end_date, lookback)
         return result
     except Exception as e:
@@ -125,9 +125,9 @@ def fama_macbeth(start_date: str = "20230101", end_date: str = "20241231", lookb
 
 @app.get("/api/multi-factor")
 def multi_factor(start_date: str = "20230101", end_date: str = "20241231", hold_days: int = 5):
-    """多因子分组回测"""
+    """多因子分组回测（用前40只）"""
     try:
-        codes = [c for c, _ in get_stock_list()]
+        codes = [c for c, _ in get_stock_list()[:40]]
         result = multi_factor_backtest(codes, start_date, end_date, ["reversal", "momentum", "volatility"], hold_days)
         return result
     except Exception as e:
