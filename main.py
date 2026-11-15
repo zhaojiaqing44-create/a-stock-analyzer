@@ -101,11 +101,18 @@ def ai_analyze(req: AIAnalyzeRequest):
 
 @app.get("/")
 def root():
-    html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
-    if os.path.exists(html_path):
-        with open(html_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(f.read())
-    return HTMLResponse("<h1>服务运行中，请查看 /docs 获取API文档</h1>")
+    # 尝试多个可能的路径，兼容Render和本地
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html"),
+        os.path.join(os.getcwd(), "static", "index.html"),
+        "/opt/render/project/src/static/index.html",
+    ]
+    for html_path in candidates:
+        if os.path.exists(html_path):
+            with open(html_path, "r", encoding="utf-8") as f:
+                return HTMLResponse(f.read())
+    # 调试：返回查找过的路径
+    return HTMLResponse(f"<h1>index.html 未找到</h1><p>已搜索路径：</p><pre>{chr(10).join(candidates)}</pre><p>请查看 /docs 获取API文档</p>")
 
 
 if __name__ == "__main__":
