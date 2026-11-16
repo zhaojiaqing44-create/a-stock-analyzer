@@ -55,6 +55,12 @@ def calc_boll(close: pd.Series, window: int = 20, num_std: int = 2):
     return upper, mid, lower
 
 
+def _clean(lst):
+    """将 NaN 转为 None，避免 JSON 序列化失败"""
+    import math
+    return [None if (isinstance(x, float) and math.isnan(x)) else x for x in lst]
+
+
 def calc_all_indicators(df: pd.DataFrame) -> dict:
     """计算所有技术指标"""
     close = df["close"]
@@ -66,18 +72,18 @@ def calc_all_indicators(df: pd.DataFrame) -> dict:
     upper, mid, lower = calc_boll(close)
 
     return {
-        "ma5": calc_ma(close, 5).tolist(),
-        "ma10": calc_ma(close, 10).tolist(),
-        "ma20": calc_ma(close, 20).tolist(),
-        "ma60": calc_ma(close, 60).tolist(),
-        "dif": dif.tolist(),
-        "dea": dea.tolist(),
-        "macd": macd_hist.tolist(),
-        "rsi": calc_rsi(close).tolist(),
-        "k": k.tolist(),
-        "d": d.tolist(),
-        "j": j.tolist(),
-        "boll_upper": upper.tolist(),
-        "boll_mid": mid.tolist(),
-        "boll_lower": lower.tolist(),
+        "ma5": _clean(calc_ma(close, 5).tolist()),
+        "ma10": _clean(calc_ma(close, 10).tolist()),
+        "ma20": _clean(calc_ma(close, 20).tolist()),
+        "ma60": _clean(calc_ma(close, 60).tolist()),
+        "dif": _clean(dif.tolist()),
+        "dea": _clean(dea.tolist()),
+        "macd": _clean(macd_hist.tolist()),
+        "rsi": _clean(calc_rsi(close).tolist()),
+        "k": _clean(k.tolist()),
+        "d": _clean(d.tolist()),
+        "j": _clean(j.tolist()),
+        "boll_upper": _clean(upper.tolist()),
+        "boll_mid": _clean(mid.tolist()),
+        "boll_lower": _clean(lower.tolist()),
     }
