@@ -71,23 +71,66 @@ def analyze_stock(code: str, stock_name: str, recent_data: dict, api_key: str = 
 
 
 def market_sentiment(api_key: str = None) -> dict:
-    """市场情绪分析"""
-    sentiments = [
-        {"score": 0.65, "label": "偏乐观", "desc": "市场情绪偏暖，资金入场意愿较强，但需警惕过热风险。"},
-        {"score": 0.45, "label": "中性", "desc": "市场情绪平稳，多空分歧不大，等待方向选择。"},
-        {"score": 0.30, "label": "偏悲观", "desc": "市场情绪偏冷，投资者风险偏好下降，建议防御为主。"},
-    ]
-    s = random.choice(sentiments)
-    return {
-        "sentiment_score": s["score"],
-        "sentiment_label": s["label"],
-        "description": s["desc"],
-        "indicators": {
-            "fear_greed_index": random.randint(20, 80),
-            "market_breadth": f"{random.randint(40, 70)}%",
-            "turnover_rate": f"{random.uniform(0.5, 2.0):.2f}%",
+    """市场情绪分析（基于真实指数涨跌幅计算）"""
+    try:
+        from data_fetcher import fetch_index_data, INDICES
+        import numpy as np
+
+        # 获取主要指数最近一日涨跌幅
+        changes = []
+        for code, name, symbol in INDICES[:4]:  # 上证、深证、创业板、沪深300
+            try:
+                df = fetch_index_data(symbol, "20240101", "20241231")
+                if len(df) >= 2:
+                    chg = (df["close"].iloc[-1] / df["close"].iloc[-2] - 1) * 100
+                    changes.append(chg)
+            except Exception:
+                continue
+
+        if not changes:
+            avg_change = 0.0
+        else:
+            avg_change = float(np.mean(changes))
+
+        # 情绪评分：涨跌幅映射到 0-100
+        # 涨幅 3%+ → 80+（乐观），跌幅 3%+ → 20-（悲观），0% → 50（中性）
+        score = 50 + avg_change * 10
+        score = max(10, min(90, score))
+
+        if score >= 60:
+            label = "偏乐观"
+            desc = f"主要指数平均上涨 {avg_change:.2f}%，市场情绪偏暖，资金入场意愿较强。"
+        elif score >= 45:
+            label = "中性"
+            desc = f"主要指数平均涨跌幅 {avg_change:.2f}%，市场情绪平稳，多空分歧不大。"
+        else:
+            label = "偏悲观"
+            desc = f"主要指数平均下跌 {abs(avg_change):.2f}%，市场情绪偏冷，投资者风险偏好下降。"
+
+        # 宽度指标简化版（用指数涨跌家数近似）
+        up_count = sum(1 for c in changes if c > 0)
+        breadth = f"{int(up_count / len(changes) * 100)}%" if changes else "N/A"
+
+        return {
+            "sentiment_score": round(score / 100, 2),
+            "sentiment_label": label,
+            "description": desc,
+            "indicators": {
+                "fear_greed_index": int(score),
+                "market_breadth": breadth,
+                "index_changes": {f"{n}": float(round(c, 2)) for (_, n, _), c in zip(INDICES[:4], changes)},
+            }
         }
-    }
+    except Exception as e:
+        return {
+            "sentiment_score": 0.5,
+            "sentiment_label": "中性",
+            "description": f"数据获取失败：{str(e)}",
+            "indicators": {
+                "fear_greed_index": 50,
+                "market_breadth": "N/A",
+            }
+        }
 
 
 def ai_chat(question: str, api_key: str = None) -> str:
